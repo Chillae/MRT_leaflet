@@ -1,0 +1,186 @@
+<html>
+<head>
+
+  <script src="minerals.geojson" type="text/javascript"></script>
+
+
+  <title>Leaflet - Minerals of Tasmania</title>
+  <!-- Include Leaflet CSS and JavaScript -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+  integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI="
+  crossorigin=""/>
+
+  
+
+ <!-- Make sure you put this AFTER Leaflet's CSS -->
+ <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+     integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM="
+     crossorigin=""></script>
+
+
+ <!-- include leaflet.shapefile to allow addition of shapefiles.
+ <script src="https://cdn.jsdelivr.net/gh/calvinmetcalf/leaflet.shapefile/leaflet.shpfile.js"></script>  -->
+
+ <!-- include jquery -->
+ <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+
+ <!-- LOCATE plugin CSS then JS plugin  https://github.com/domoritz/leaflet-locatecontrol -->
+ <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
+ <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+
+
+  <!-- Set the height of the map container -->
+<style>
+    #mapid { height: 100%; }
+
+  </style>
+</head>
+
+
+
+
+
+<body>
+  <!-- Create a div to hold the map -->
+  <div id="mapid"></div>
+
+
+
+  <script type='module'>
+
+    function fetchJSON(url) {
+    return fetch(url)
+        .then(function(response) {
+        return response.json();
+        });
+    }
+
+    
+    // Create a new map instance and set the center and zoom level
+    var mymap = L.map('mapid').setView([-42.214788, 146.722473], 8);
+    // "L" stands for Leaflet, "map" creates a new map instance, "setView" sets the center and zoom level of the map
+
+
+    //add the location control to the map   //https://www.youtube.com/watch?v=FaABCCKf97c
+    L.control.locate().addTo(mymap);
+
+  
+
+    // create three basemaps
+    var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: 'Map data &copy; OpenStreetMap contributors'
+    });
+    // second basemap: satellite map from Esri
+    var satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Map data &copy; Esri'
+    });
+    var topoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+
+    });
+
+    // add a default basemap to the map
+    //streetMap.addTo(mymap);
+    satelliteMap.addTo(mymap);
+
+
+    //create a basic marker, change the parameters afterward to alter
+    function basicMarker(){ 
+        let newMarkerOptions = {
+            radius: 8,
+            fillColor: "#808080",
+            color: "#000",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+        }
+        return newMarkerOptions
+    }
+    
+    var defaultMarkerOptions = {
+        radius: 8,
+        fillColor: "#808080",
+        color: "#000",
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8
+    };
+    var commodityOptions = {} //This stuff should be read from a json file or whatever but I'm lazy (:
+    commodityOptions.Gold = basicMarker();
+    commodityOptions.Gold.fillColor = "#ffd700";
+    commodityOptions.Copper = basicMarker();
+    commodityOptions.Copper.fillColor = "#b87333";
+    commodityOptions.Sapphire = basicMarker();
+    commodityOptions.Sapphire.fillColor = "#0f52ba";
+    commodityOptions.Tin = basicMarker();
+    commodityOptions.Tin.fillColor = "#808080";
+    commodityOptions.Zircon = basicMarker();
+    commodityOptions.Zircon.fillColor = "#a3928f";
+    commodityOptions.Silver = basicMarker();
+    commodityOptions.Silver.fillColor = "#d3d4d5";
+    commodityOptions.Platinoids = basicMarker();
+    commodityOptions.Platinoids.fillColor = "#e5e4e2";
+    commodityOptions["Osmium-Iridium"] = basicMarker();
+    commodityOptions["Osmium-Iridium"].fillColor = "#9090A3"
+
+
+
+    let dataJSON = await fetchJSON("https://raw.githubusercontent.com/Chillae/mrt_leaflet/main/minerals.geojson") //gets the minerals.geojson file from the same directory
+    var featureCollection = dataJSON.features //gets the feature collection as a list containing each feature
+
+    for (let i=0; i< featureCollection.length; i++){
+        let currentfeature = featureCollection[i];
+        let options = null;//Temporary variable allocation so compiler don't get mad at me
+        let commodityTypes = Object.keys(commodityOptions) //Returns a list of the commodity types that we defined marker colours for
+        //console.log(commodityTypes);  
+        let commodity = currentfeature.properties.COMMODITY //Just a variable for storing the current
+        
+
+
+
+        if (commodityTypes.includes(commodity)){ //If my commodity types has option for the commodity type of current feature, apply relevant options
+            //console.log("DEBUG: "+commodity+" has a valid marker options, applying...")
+            //console.log("DEBUG: "+featureCollection[i])
+            options = commodityOptions[commodity]
+        }
+        else{ //Otherwise apply the default options
+            //console.log("DEBUG: "+commodity+ " has no valid marker options, appying default")
+            options = defaultMarkerOptions
+        }
+
+
+
+
+
+        var leafletfeature = L.geoJSON(currentfeature,{ //This is some kind of constructor function, I don't usually do these like this because it scares me but it seems powerful
+            pointToLayer: function (feature, latlng){ //not sure what feature does, pass latlng to circleMarker to pass for latitude longitude
+                var marker = L.circleMarker(latlng,options) //Options must be an object contain properties as in objects defined above. Not sure what other properties work.
+                marker.bindPopup(currentfeature.properties.COMMODITY + " - " + currentfeature.properties.DETAILS) //bindPopup makes a popup appear when selected. JSON.stringify can turn any javascript object into a string
+                return marker
+            }
+        })
+        leafletfeature.addTo(mymap)
+    }
+
+
+
+
+   
+    // create the basemap control
+    // create an object with basemap names as keys and basemap layers as values
+    var basemaps = {
+        "Street Map": streetMap,
+        "Satellite Map": satelliteMap,
+        "Topo Map": topoMap
+    };
+    L.control.layers(basemaps).addTo(mymap);
+
+
+
+
+
+
+
+
+  </script>
+</body>
+</html>
